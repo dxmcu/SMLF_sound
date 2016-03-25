@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package>
+  <name>sound_server</name>
+  <version>1.0.0</version>
+  <description>sound_server</description>
+  <maintainer email="lz@gs-robot.com">lz</maintainer>
+  <license>NO LICENSE</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>autoscrubber_services</build_depend>
+
+  <run_depend>roscpp</run_depend>
+  <run_depend>autoscrubber_services</run_depend>
+</package>
