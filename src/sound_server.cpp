@@ -34,6 +34,7 @@ std::string stop_key = std::string("stop");
 std::string start_key = std::string("start");
 std::string loop_key = std::string("loop");
 std::string insert_key = std::string("insert");
+std::string voice_key = std::string("voice");
 std::string null_value = std::string("");
 std::string sound_file_name_;
 
@@ -152,11 +153,12 @@ bool compareString(std::string cmp_str1, std::string cmp_str2) {
 
 void PlaySoundCallBack(const diagnostic_msgs::KeyValue& sound_val) {
   // not null and not under_play_
-  ROS_WARN("[sound_server] PlaySoundCallBack E");
-  ROS_INFO("[sound_server] play key: %s ", sound_val.key.c_str());
-  ROS_INFO("[sound_server] play file: %s ", sound_val.value.c_str());
+//  ROS_WARN("[sound_server] PlaySoundCallBack E");
+//  ROS_INFO("[sound_server] play key: %s ", sound_val.key.c_str());
+//  ROS_INFO("[sound_server] play file: %s ", sound_val.value.c_str());
   if ((!compareString(sound_val.key, start_key) || 
        !compareString(sound_val.key, loop_key)  ||
+       !compareString(sound_val.key, voice_key)  ||
        !compareString(sound_val.key, insert_key)) && 
       compareString(sound_val.value ,null_value)) {  //start play
     if ((sound.getStatus() == sf::Sound::Playing || sound.getLoop() || start_play_) && 
@@ -186,21 +188,21 @@ void PlaySoundCallBack(const diagnostic_msgs::KeyValue& sound_val) {
       sound.setLoop(true);
       start_play_ = true;
       insert_play_ = false;
-      ROS_INFO("[sound_server] loop play called");
+//      ROS_INFO("[sound_server] loop play called");
     } else if (!compareString(sound_val.key, start_key)){
       sound.setLoop(false);
       start_play_ = true;
       insert_play_ = false;
-      ROS_INFO("[sound_server] start play but not loop called");
-    } else if (!compareString(sound_val.key, insert_key)){
+//      ROS_INFO("[sound_server] start play but not loop called");
+    } else if (!compareString(sound_val.key, insert_key) || !compareString(sound_val.key, voice_key)){
       sound.setLoop(false);
       start_play_ = true;
       insert_play_ = true;
-      ROS_INFO("[sound_server] start play but not loop called");
+//      ROS_INFO("[sound_server] start play but not loop called");
     }
     unlock();
   } else if (!compareString(sound_val.key, stop_key)) {
-    ROS_INFO("[sound_server] stop play called");
+//    ROS_INFO("[sound_server] stop play called");
     start_play_ = false;
     while (sound.getStatus() != sf::Sound::Stopped || start_play_) {
       start_play_ = false;
