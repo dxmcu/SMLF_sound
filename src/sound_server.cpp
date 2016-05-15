@@ -8,6 +8,7 @@
  * @date 2016-02-29
  */
 #include <ros/ros.h>
+#include <std_msgs/UInt32.h>
 #include <diagnostic_msgs/KeyValue.h>
 #include <signal.h>
 #include <string>
@@ -37,6 +38,8 @@ std::string insert_key = std::string("insert");
 std::string voice_key = std::string("voice");
 std::string null_value = std::string("");
 std::string sound_file_name_;
+
+ros::Publisher sound_state_publisher;
 
 sf::Sound sound;
 pthread_mutex_t lock_;
@@ -73,6 +76,12 @@ void playMusic(const std::string& filename) {
   std::cout << std::endl << std::endl;
 }
 
+// 1: playing, 0:stopped
+void publish_sound_state(unsigned int state) {
+  std_msgs::UInt32 state_msg;
+  state_msg.data = state;
+  sound_state_publisher.publish(state_msg);
+}
 ////////////////////////////////////////////////////////////
 /// Play a sound
 ///
@@ -82,9 +91,11 @@ void playSound() {
   while(n.ok()) {
     if (!start_play_) {
       usleep(1500);
+      publish_sound_state(0);
       continue;
     }
     lock();
+    publish_sound_state(1);
     ROS_WARN("[sound_server] play sound start: file name = %s", sound_file_name_.c_str());
     sf::SoundBuffer buffer;
     if (!buffer.loadFromFile(sound_file_name_)) {
@@ -106,7 +117,7 @@ void playSound() {
     }
 
     if (!start_play_) {
-      ROS_WARN("[sound_server] play sound end!");
+//      ROS_WARN("[sound_server] play sound end!");
       unlock();
       continue;
     }
@@ -117,6 +128,7 @@ void playSound() {
     while (sound.getStatus() == sf::Sound::Playing && start_play_) {
       // Leave some CPU time for other processes
       sf::sleep(sf::milliseconds(100));
+      publish_sound_state(1);
       // Display the playing position
 //      std::cout << "\rPlaying... " << std::fixed << std::setprecision(2) << sound.getPlayingOffset().asSeconds() << " sec   ";
 //      std::cout << std::flush;
@@ -133,18 +145,10 @@ void playSound() {
     }
 */
     start_play_ = false;
-    ROS_WARN("[sound_server] play sound end!");
+//    ROS_WARN("[sound_server] play sound end!");
     unlock();
+    publish_sound_state(0);
   }
-}
-
-void sigintHandler(int sig)
-{
-  // TODO(lizhen): Save current pose as default_initial_pose when we're shutting down.
-  sound.setLoop(false);
-  sound.stop();
-  unlock();
-  ros::shutdown();
 }
 
 bool compareString(std::string cmp_str1, std::string cmp_str2) {
@@ -163,7 +167,7 @@ void PlaySoundCallBack(const diagnostic_msgs::KeyValue& sound_val) {
       compareString(sound_val.value ,null_value)) {  //start play
     if ((sound.getStatus() == sf::Sound::Playing || sound.getLoop() || start_play_) && 
         !compareString(sound_val.value, sound_file_name_)) {
-       ROS_INFO("[sound_server] file: %s is playing ,return directly", sound_val.value.c_str());
+//       ROS_INFO("[sound_server] file: %s is playing ,return directly", sound_val.value.c_str());
       return ;
     } 
 /*
@@ -211,23 +215,33 @@ void PlaySoundCallBack(const diagnostic_msgs::KeyValue& sound_val) {
       sf::sleep(sf::milliseconds(1));
     }
   } 
-  ROS_WARN("[sound_server] PlaySoundCallBack X");
+//  ROS_WARN("[sound_server] PlaySoundCallBack X");
 }
 
 void ros_thread() {
   ROS_INFO("[sound_server] ros_thread started");
   ros::NodeHandle n;
   ros::Subscriber play_sound_sub = n.subscribe("/play_sound", 10, PlaySoundCallBack);
+  sound_state_publisher = n.advertise<std_msgs::UInt32>("/sound_state", 10);
 //  goal_publisher = n.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
   ros::spin();
   ROS_INFO("[sound_server] ros_thread exited");
 }
 
+void sigintHandler(int sig)
+{
+  // TODO(lizhen): Save current pose as default_initial_pose when we're shutting down.
+  sound.setLoop(false);
+  sound.stop();
+  unlock();
+  ros::shutdown();
+}
 
 int main(int argc, char** argv) {
 
   ros::init(argc, argv, "sound_server");
   ROS_INFO("[sound_server] sound_server node started");
+  signal(SIGINT, sigintHandler);
 
   pthread_mutex_init(&lock_, NULL);
 //  ros::NodeHandle nh("~");
