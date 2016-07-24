@@ -82,140 +82,98 @@ void publish_sound_state(unsigned int state) {
   state_msg.data = state;
   sound_state_publisher.publish(state_msg);
 }
+
 ////////////////////////////////////////////////////////////
 /// Play a sound
 ///
 ////////////////////////////////////////////////////////////
 void playSound() {
-  ros::NodeHandle n;
-  while(n.ok()) {
-    if (!start_play_) {
-      usleep(1500);
-      publish_sound_state(0);
-      continue;
-    }
-    lock();
-    publish_sound_state(1);
-    ROS_WARN("[sound_server] play sound start: file name = %s", sound_file_name_.c_str());
-    sf::SoundBuffer buffer;
-    if (!buffer.loadFromFile(sound_file_name_)) {
-      ROS_ERROR("[sound_server] loading sound file(%s) failed, please check", sound_file_name_.c_str());
-      start_play_ = false;
-      unlock();
-      continue;
-    }
-    if (!insert_play_) {
-      for (int i = 0; i < 35; ++i) {
-        if (!start_play_ || insert_play_){
-          if (insert_play_) insert_play_ = false;
-          break;
-        }
-        sf::sleep(sf::milliseconds(100));
-      }
-    } else {
-      insert_play_ = false;
-    }
-
-    if (!start_play_) {
-//      ROS_WARN("[sound_server] play sound end!");
-      unlock();
-      continue;
-    }
-    sound.setBuffer(buffer);
-    sound.play();
-
-    // Loop while the sound is playing
-    while (sound.getStatus() == sf::Sound::Playing && start_play_) {
-      // Leave some CPU time for other processes
-      sf::sleep(sf::milliseconds(100));
-      publish_sound_state(1);
-      // Display the playing position
-//      std::cout << "\rPlaying... " << std::fixed << std::setprecision(2) << sound.getPlayingOffset().asSeconds() << " sec   ";
-//      std::cout << std::flush;
-    }
-    sound.stop();
-    sound.setLoop(false);
-/*    if (start_play_ && !insert_paly_) {
-      for (int i = 0; i < 20; ++i) {
-        sf::sleep(sf::milliseconds(100));
-        if (!start_play_) {
-          break;
-        }
-      }
-    }
-*/
+  ROS_WARN("[sound_server] play sound start: file name = %s", sound_file_name_.c_str());
+  sf::SoundBuffer buffer;
+  if (!buffer.loadFromFile(sound_file_name_)) {
+    ROS_ERROR("[sound_server] loading sound file(%s) failed, please check", sound_file_name_.c_str());
     start_play_ = false;
-//    ROS_WARN("[sound_server] play sound end!");
-    unlock();
-    publish_sound_state(0);
+    return;
   }
+  if (!insert_play_) {
+    for (int i = 0; i < 35; ++i) {
+      if (!start_play_ || insert_play_){
+        if (insert_play_) insert_play_ = false;
+        break;
+      }
+      sf::sleep(sf::milliseconds(100));
+    }
+  } else {
+    insert_play_ = false;
+  }
+
+  publish_sound_state(1);
+
+  sound.setBuffer(buffer);
+  sound.play();
+
+  // Loop while the sound is playing
+  while (sound.getStatus() == sf::Sound::Playing && start_play_) {
+    // Leave some CPU time for other processes
+    sf::sleep(sf::milliseconds(100));
+    publish_sound_state(1);
+  }
+  sound.stop();
+  sound.setLoop(false);
+
+  start_play_ = false;
+  publish_sound_state(0);
+//  ROS_WARN("[sound_server] play sound end!");
 }
 
-bool compareString(std::string cmp_str1, std::string cmp_str2) {
-   return std::strcmp(cmp_str1.c_str(), cmp_str2.c_str());
+bool isSame(std::string cmp_str1, std::string cmp_str2) {
+   return !std::strcmp(cmp_str1.c_str(), cmp_str2.c_str());
 }
 
 void PlaySoundCallBack(const diagnostic_msgs::KeyValue& sound_val) {
   // not null and not under_play_
-//  ROS_WARN("[sound_server] PlaySoundCallBack E");
-//  ROS_INFO("[sound_server] play key: %s ", sound_val.key.c_str());
-//  ROS_INFO("[sound_server] play file: %s ", sound_val.value.c_str());
-  if ((!compareString(sound_val.key, start_key) || 
-       !compareString(sound_val.key, loop_key)  ||
-       !compareString(sound_val.key, voice_key)  ||
-       !compareString(sound_val.key, insert_key)) && 
-      compareString(sound_val.value ,null_value)) {  //start play
+  if ((isSame(sound_val.key, start_key) || 
+       isSame(sound_val.key, loop_key)  ||
+       isSame(sound_val.key, voice_key)  ||
+       isSame(sound_val.key, insert_key)) && 
+       !isSame(sound_val.value ,null_value)) {  //start play
     if ((sound.getStatus() == sf::Sound::Playing || sound.getLoop() || start_play_) && 
-        !compareString(sound_val.value, sound_file_name_)) {
-//       ROS_INFO("[sound_server] file: %s is playing ,return directly", sound_val.value.c_str());
+        isSame(sound_val.value, sound_file_name_)) { //the same file is playing. just return
+//      ROS_INFO("[sound_server] file: %s is playing ,return directly", sound_val.value.c_str());
       return ;
     } 
-/*
-    if (!compareString(sound_val.key, insert_key)) {
-       insert_play_ = true;
-    }
-*/
-    //not equal to origin file name 
-    // sound.getStatus() == sf::Sound::Playing || 
+
+    //new file, stop the origin one first 
     while (sound.getStatus() != sf::Sound::Stopped || start_play_) {
-      start_play_ = false;
       sound.setLoop(false);
       sound.stop();
-      ROS_INFO("[sound_server] stop origin playing first!");
 //      ROS_INFO("[sound_server] stop origin playing first:\n origin = %s \n current = %s", sound_val.value.c_str(), sound_file_name_.c_str());
       sf::sleep(sf::milliseconds(1));
     }
 
-    lock();
+    if (isSame(sound_val.key, stop_key)) {
+      start_play_ = false;
+      insert_play_ = false;
+//      ROS_INFO("[sound_server] stopped now,return directly");
+      return;
+    }
+
     sound_file_name_ = sound_val.value; 
-    if (!compareString(sound_val.key, loop_key)) {
+    start_play_ = true;
+    if (isSame(sound_val.key, loop_key)) {
       sound.setLoop(true);
-      start_play_ = true;
       insert_play_ = false;
 //      ROS_INFO("[sound_server] loop play called");
-    } else if (!compareString(sound_val.key, start_key)){
+    } else if (isSame(sound_val.key, start_key)){
       sound.setLoop(false);
-      start_play_ = true;
       insert_play_ = false;
-//      ROS_INFO("[sound_server] start play but not loop called");
-    } else if (!compareString(sound_val.key, insert_key) || !compareString(sound_val.key, voice_key)){
+//      ROS_INFO("[sound_server] start playing but not loop called");
+    } else if (isSame(sound_val.key, insert_key) || isSame(sound_val.key, voice_key)){
       sound.setLoop(false);
-      start_play_ = true;
       insert_play_ = true;
-//      ROS_INFO("[sound_server] start play but not loop called");
+//      ROS_INFO("[sound_server] start playing but not loop called");
     }
-    unlock();
-  } else if (!compareString(sound_val.key, stop_key)) {
-//    ROS_INFO("[sound_server] stop play called");
-    start_play_ = false;
-    while (sound.getStatus() != sf::Sound::Stopped || start_play_) {
-      start_play_ = false;
-      sound.setLoop(false);
-      sound.stop();
-      sf::sleep(sf::milliseconds(1));
-    }
-  } 
-//  ROS_WARN("[sound_server] PlaySoundCallBack X");
+  }
 }
 
 void ros_thread() {
@@ -233,7 +191,7 @@ void sigintHandler(int sig)
   // TODO(lizhen): Save current pose as default_initial_pose when we're shutting down.
   sound.setLoop(false);
   sound.stop();
-  unlock();
+//  unlock();
   ros::shutdown();
 }
 
@@ -243,26 +201,20 @@ int main(int argc, char** argv) {
   ROS_INFO("[sound_server] sound_server node started");
   signal(SIGINT, sigintHandler);
 
-  pthread_mutex_init(&lock_, NULL);
+//  pthread_mutex_init(&lock_, NULL);
 //  ros::NodeHandle nh("~");
 //  nh.param("wav_file", wav_path_, wav_file_path);
 
   std::thread t(ros_thread);
   t.detach();
 
-  playSound();
-/*    if (stop_play_) {
   ros::NodeHandle n;
   while(n.ok()) {
-      while(under_playing_) {
-        usleep(10000);
-      } 
-      stop_play_ = false;
+    if (!start_play_) {
+      usleep(100000);
+      continue;
     }
-    if ((loop_play_ || start_play_) && !under_playing_) {
-      playSound(sound_file_name_);
-    }
+    playSound();
   }
-*/
   return 0;
 }
