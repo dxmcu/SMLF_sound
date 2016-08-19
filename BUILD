@@ -1,6 +1,8 @@
 # Bazel (http://bazel.io/) BUILD file for path_recorder.
 
-COPTS = []
+COPTS = [
+    "-std=c++11",
+]
 LINK_OPTS = []
 
 # sound_server
@@ -8,16 +10,12 @@ cc_binary(
     name = "sound_server",
     srcs = [
         "src/sound_server.cpp",
-    ],
-    hdrs = glob([
-        "include/**/**/*.hpp",
-        "include/**/*.hpp",
     ]),
     includes = [
         "include",
     ],
     copts = COPTS,
-    linkopts = LINKOPTS,
+    linkopts = LINK_OPTS,
     linkstatic = True,
     deps = [
         "//external:roscpp",

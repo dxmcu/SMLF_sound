@@ -108,17 +108,18 @@ void playSound() {
   }
 
   publish_sound_state(1);
-
+  sound.resetBuffer();
   sound.setBuffer(buffer);
   sound.play();
 
   // Loop while the sound is playing
   while (sound.getStatus() == sf::Sound::Playing && start_play_) {
     // Leave some CPU time for other processes
-    sf::sleep(sf::milliseconds(100));
+    //sf::sleep(sf::milliseconds(100));
     publish_sound_state(1);
   }
   sound.stop();
+  sound.resetBuffer();
   sound.setLoop(false);
 
   start_play_ = false;
@@ -143,10 +144,11 @@ void PlaySoundCallBack(const diagnostic_msgs::KeyValue& sound_val) {
       return ;
     } 
 
-    //new file, stop the origin one first 
+    //new file, stop the origin one first
     while (sound.getStatus() != sf::Sound::Stopped || start_play_) {
-      sound.setLoop(false);
       sound.stop();
+      sound.setLoop(false);
+      sound.resetBuffer();
 //      ROS_INFO("[sound_server] stop origin playing first:\n origin = %s \n current = %s", sound_val.value.c_str(), sound_file_name_.c_str());
       sf::sleep(sf::milliseconds(1));
     }
@@ -182,7 +184,11 @@ void ros_thread() {
   ros::Subscriber play_sound_sub = n.subscribe("/play_sound", 10, PlaySoundCallBack);
   sound_state_publisher = n.advertise<std_msgs::UInt32>("/sound_state", 10);
 //  goal_publisher = n.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
-  ros::spin();
+  ros::Rate loop_rate(5);
+  while(1){
+      ros::spinOnce();
+      loop_rate.sleep();
+  }
   ROS_INFO("[sound_server] ros_thread exited");
 }
 
@@ -190,6 +196,7 @@ void sigintHandler(int sig)
 {
   // TODO(lizhen): Save current pose as default_initial_pose when we're shutting down.
   sound.setLoop(false);
+  sound.resetBuffer();
   sound.stop();
 //  unlock();
   ros::shutdown();
@@ -215,6 +222,7 @@ int main(int argc, char** argv) {
       continue;
     }
     playSound();
+    usleep(20000);
   }
   return 0;
 }
