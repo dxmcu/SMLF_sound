@@ -113,9 +113,9 @@ void playSound() {
   sound.play();
 
   // Loop while the sound is playing
-  while (sound.getStatus() == sf::Sound::Playing && start_play_) {
+ while (sound.getStatus() == sf::Sound::Playing && start_play_) {
     // Leave some CPU time for other processes
-    //sf::sleep(sf::milliseconds(100));
+    sf::sleep(sf::milliseconds(50));
     publish_sound_state(1);
   }
   sound.stop();
@@ -150,7 +150,7 @@ void PlaySoundCallBack(const diagnostic_msgs::KeyValue& sound_val) {
       sound.setLoop(false);
       sound.resetBuffer();
 //      ROS_INFO("[sound_server] stop origin playing first:\n origin = %s \n current = %s", sound_val.value.c_str(), sound_file_name_.c_str());
-      sf::sleep(sf::milliseconds(1));
+      sf::sleep(sf::milliseconds(50));
     }
 
     if (isSame(sound_val.key, stop_key)) {
@@ -181,10 +181,10 @@ void PlaySoundCallBack(const diagnostic_msgs::KeyValue& sound_val) {
 void ros_thread() {
   ROS_INFO("[sound_server] ros_thread started");
   ros::NodeHandle n;
-  ros::Subscriber play_sound_sub = n.subscribe("/play_sound", 10, PlaySoundCallBack);
+  ros::Subscriber play_sound_sub = n.subscribe("/play_sound", 20, PlaySoundCallBack);
   sound_state_publisher = n.advertise<std_msgs::UInt32>("/sound_state", 10);
 //  goal_publisher = n.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
-  ros::Rate loop_rate(5);
+  ros::Rate loop_rate(20);
   while(1){
       ros::spinOnce();
       loop_rate.sleep();
@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
   ros::NodeHandle n;
   while(n.ok()) {
     if (!start_play_) {
-      usleep(100000);
+      usleep(10000);
       continue;
     }
     playSound();
