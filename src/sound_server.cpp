@@ -37,7 +37,7 @@ std::string loop_key = std::string("loop");
 std::string insert_key = std::string("insert");
 std::string voice_key = std::string("voice");
 std::string null_value = std::string("");
-std::string sound_file_name_;
+std::string sound_file_name_ = std::string("");
 
 ros::Publisher sound_state_publisher;
 
@@ -101,7 +101,7 @@ void playSound() {
         if (insert_play_) insert_play_ = false;
         break;
       }
-      sf::sleep(sf::milliseconds(100));
+      sf::sleep(sf::milliseconds(50));
     }
   } else {
     insert_play_ = false;
@@ -119,12 +119,9 @@ void playSound() {
     publish_sound_state(1);
   }
   sound.stop();
-  sound.resetBuffer();
   sound.setLoop(false);
-
   start_play_ = false;
   publish_sound_state(0);
-//  ROS_WARN("[sound_server] play sound end!");
 }
 
 bool isSame(std::string cmp_str1, std::string cmp_str2) {
