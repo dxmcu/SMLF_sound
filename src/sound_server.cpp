@@ -88,7 +88,9 @@ void publish_sound_state(unsigned int state) {
 ///
 ////////////////////////////////////////////////////////////
 void playSound() {
-  ROS_WARN("[sound_server] play sound start: file name = %s", sound_file_name_.c_str());
+    if (!start_play_) {
+        return;
+    }
   sf::SoundBuffer buffer;
   if (!buffer.loadFromFile(sound_file_name_)) {
     ROS_ERROR("[sound_server] loading sound file(%s) failed, please check", sound_file_name_.c_str());
@@ -181,7 +183,7 @@ void ros_thread() {
   ros::Subscriber play_sound_sub = n.subscribe("/play_sound", 20, PlaySoundCallBack);
   sound_state_publisher = n.advertise<std_msgs::UInt32>("/sound_state", 10);
 //  goal_publisher = n.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
-  ros::Rate loop_rate(20);
+  ros::Rate loop_rate(50);
   while(1){
       ros::spinOnce();
       loop_rate.sleep();
@@ -189,7 +191,7 @@ void ros_thread() {
   ROS_INFO("[sound_server] ros_thread exited");
 }
 
-void sigintHandler(int sig)
+void freeResource()
 {
   // TODO(lizhen): Save current pose as default_initial_pose when we're shutting down.
   sound.setLoop(false);
@@ -203,7 +205,6 @@ int main(int argc, char** argv) {
 
   ros::init(argc, argv, "sound_server");
   ROS_INFO("[sound_server] sound_server node started");
-  signal(SIGINT, sigintHandler);
 
 //  pthread_mutex_init(&lock_, NULL);
 //  ros::NodeHandle nh("~");
@@ -214,12 +215,9 @@ int main(int argc, char** argv) {
 
   ros::NodeHandle n;
   while(n.ok()) {
-    if (!start_play_) {
-      usleep(10000);
-      continue;
-    }
     playSound();
-    usleep(20000);
+    usleep(30000);
   }
+  freeResource();
   return 0;
 }
